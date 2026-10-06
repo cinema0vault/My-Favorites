@@ -633,43 +633,38 @@ app.get(
 
       }
 
-      // Torrent information exists,
-      // but there is no torrent-to-HTTP
-      // streaming backend yet.
-      if (
-        data.torrent_type &&
-        (data.torrent_data || data.info_hash)
-      ) {
-
+      // Torrent stream
+      if (data.info_hash) {
         return res.json({
-
-          streams: []
-
-        });
-
+          streams: [
+        {
+        name: "My Favorites",
+        title: data.title || "Torrent",
+        infoHash: data.info_hash,
+        type: "torrent"
       }
-
+    ]
+  });
+}
       return res.json({
         streams: []
       });
 
-    }
-
-    catch (error) {
-
+    } catch (error) {
       console.error(
         "STREAM ERROR:",
         error
       );
 
-      res.json({
+      return res.json({
         streams: []
       });
-
     }
 
   }
-);
+);      
+
+
 
 // =====================================================
 // HTML escaping
