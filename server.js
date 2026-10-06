@@ -6,6 +6,10 @@ const parseTorrent = require("parse-torrent-file");
 const app = express();
 const PORT = process.env.PORT || 10000;
 
+// =====================================================
+// UPLOAD CONFIGURATION
+// =====================================================
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
@@ -19,7 +23,10 @@ const upload = multer({
 
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, OPTIONS"
+  );
   res.header(
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization"
@@ -46,7 +53,9 @@ const supabase = createClient(
 // =====================================================
 
 app.get("/", (req, res) => {
-  res.send("My Favorites Stremio Addon is running!");
+  res.send(
+    "My Favorites Stremio Addon is running! Direct video URLs and torrent streams are supported."
+  );
 });
 
 // =====================================================
@@ -57,6 +66,7 @@ app.get("/admin", (req, res) => {
   res.send(`
 <!DOCTYPE html>
 <html>
+
 <head>
 
 <meta charset="UTF-8">
@@ -168,6 +178,7 @@ button:hover {
   required
 >
 
+
 <label>Poster URL</label>
 
 <input
@@ -177,13 +188,30 @@ button:hover {
 >
 
 <p class="hint">
-Use a direct image URL ending in .jpg, .jpeg, .png or .webp.
+Use a direct image URL.
 </p>
 
+
+<!-- =================================================
+     1080P
+================================================= -->
 
 <div class="version">
 
 <h2>1080p</h2>
+
+<label>1080p Direct Video / Download URL</label>
+
+<input
+  type="url"
+  name="url1080"
+  placeholder="https://example.com/video-1080p.mp4"
+>
+
+<p class="hint">
+Use a direct playable video/file URL.
+</p>
+
 
 <label>1080p Magnet Link</label>
 
@@ -192,6 +220,7 @@ Use a direct image URL ending in .jpg, .jpeg, .png or .webp.
   name="magnet1080"
   placeholder="magnet:?xt=urn:btih:..."
 >
+
 
 <label>OR 1080p .torrent</label>
 
@@ -204,9 +233,26 @@ Use a direct image URL ending in .jpg, .jpeg, .png or .webp.
 </div>
 
 
+<!-- =================================================
+     4K
+================================================= -->
+
 <div class="version">
 
 <h2>4K</h2>
+
+<label>4K Direct Video / Download URL</label>
+
+<input
+  type="url"
+  name="url4k"
+  placeholder="https://example.com/video-4k.mp4"
+>
+
+<p class="hint">
+Use a direct playable video/file URL.
+</p>
+
 
 <label>4K Magnet Link</label>
 
@@ -215,6 +261,7 @@ Use a direct image URL ending in .jpg, .jpeg, .png or .webp.
   name="magnet4k"
   placeholder="magnet:?xt=urn:btih:..."
 >
+
 
 <label>OR 4K .torrent</label>
 
@@ -236,12 +283,13 @@ ADD MOVIE
 </div>
 
 </body>
+
 </html>
   `);
 });
 
 // =====================================================
-// PARSE TORRENT SOURCE
+// PARSE MAGNET
 // =====================================================
 
 function parseMagnet(magnet) {
@@ -261,6 +309,9 @@ function parseMagnet(magnet) {
   };
 }
 
+// =====================================================
+// PARSE TORRENT FILE
+// =====================================================
 
 function parseTorrentFile(file) {
 
@@ -269,7 +320,9 @@ function parseTorrentFile(file) {
       .toLowerCase()
       .endsWith(".torrent")
   ) {
-    throw new Error("Please upload a .torrent file");
+    throw new Error(
+      "Please upload a .torrent file"
+    );
   }
 
   const parsed = parseTorrent(file.buffer);
@@ -282,8 +335,10 @@ function parseTorrentFile(file) {
 
   return {
     torrentType: "torrent",
-    torrentData: file.buffer.toString("base64"),
-    infoHash: parsed.infoHash.toLowerCase()
+    torrentData:
+      file.buffer.toString("base64"),
+    infoHash:
+      parsed.infoHash.toLowerCase()
   };
 }
 
@@ -293,6 +348,7 @@ function parseTorrentFile(file) {
 
 app.post(
   "/admin/add",
+
   upload.fields([
     {
       name: "torrent1080",
@@ -303,6 +359,7 @@ app.post(
       maxCount: 1
     }
   ]),
+
   async (req, res) => {
 
     try {
@@ -310,30 +367,71 @@ app.post(
       const {
         title,
         poster_url,
+        url1080,
+        url4k,
         magnet1080,
         magnet4k
       } = req.body;
 
-      if (!title || !title.trim()) {
+
+      if (
+        !title ||
+        !title.trim()
+      ) {
+
         return res.status(400).send(
           "Movie title is required"
         );
+
       }
 
+
       const torrent1080 =
-        req.files?.torrent1080?.[0] || null;
+        req.files?.torrent1080?.[0] ||
+        null;
 
       const torrent4k =
-        req.files?.torrent4k?.[0] || null;
+        req.files?.torrent4k?.[0] ||
+        null;
+
 
       const streams = [];
 
+
       // =================================================
-      // 1080p
+      // 1080P DIRECT URL
       // =================================================
 
       if (
-        (magnet1080 && magnet1080.trim()) ||
+        url1080 &&
+        url1080.trim()
+      ) {
+
+        streams.push({
+
+          quality: "1080p",
+
+          torrentType: null,
+
+          torrentData: null,
+
+          infoHash: null,
+
+          streamUrl:
+            url1080.trim()
+
+        });
+
+      }
+
+
+      // =================================================
+      // 1080P TORRENT
+      // =================================================
+
+      if (
+        (magnet1080 &&
+          magnet1080.trim()) ||
         torrent1080
       ) {
 
@@ -341,33 +439,82 @@ app.post(
 
           let parsed;
 
-          if (magnet1080 && magnet1080.trim()) {
-            parsed = parseMagnet(magnet1080);
+          if (
+            magnet1080 &&
+            magnet1080.trim()
+          ) {
+
+            parsed =
+              parseMagnet(
+                magnet1080
+              );
+
           } else {
-            parsed = parseTorrentFile(torrent1080);
+
+            parsed =
+              parseTorrentFile(
+                torrent1080
+              );
+
           }
 
+
           streams.push({
+
             quality: "1080p",
+
             ...parsed
+
           });
 
-        } catch (error) {
+        }
+
+        catch (error) {
 
           return res.status(400).send(
-            "1080p error: " + error.message
+            "1080p error: " +
+            error.message
           );
 
         }
 
       }
 
+
       // =================================================
-      // 4K
+      // 4K DIRECT URL
       // =================================================
 
       if (
-        (magnet4k && magnet4k.trim()) ||
+        url4k &&
+        url4k.trim()
+      ) {
+
+        streams.push({
+
+          quality: "4K",
+
+          torrentType: null,
+
+          torrentData: null,
+
+          infoHash: null,
+
+          streamUrl:
+            url4k.trim()
+
+        });
+
+      }
+
+
+      // =================================================
+      // 4K TORRENT
+      // =================================================
+
+      if (
+        (magnet4k &&
+          magnet4k.trim()) ||
         torrent4k
       ) {
 
@@ -375,53 +522,97 @@ app.post(
 
           let parsed;
 
-          if (magnet4k && magnet4k.trim()) {
-            parsed = parseMagnet(magnet4k);
+          if (
+            magnet4k &&
+            magnet4k.trim()
+          ) {
+
+            parsed =
+              parseMagnet(
+                magnet4k
+              );
+
           } else {
-            parsed = parseTorrentFile(torrent4k);
+
+            parsed =
+              parseTorrentFile(
+                torrent4k
+              );
+
           }
 
+
           streams.push({
+
             quality: "4K",
+
             ...parsed
+
           });
 
-        } catch (error) {
+        }
+
+        catch (error) {
 
           return res.status(400).send(
-            "4K error: " + error.message
+            "4K error: " +
+            error.message
           );
 
         }
 
       }
 
-      if (streams.length === 0) {
+
+      // =================================================
+      // CHECK STREAMS
+      // =================================================
+
+      if (
+        streams.length === 0
+      ) {
 
         return res.status(400).send(
-          "Add at least one 1080p or 4K torrent."
+          "Add at least one 1080p or 4K direct URL, magnet, or .torrent."
         );
 
       }
+
 
       // =================================================
       // CREATE MOVIE
       // =================================================
 
-      const { data: movie, error: movieError } =
-        await supabase
-          .from("movies")
-          .insert([
-            {
-              title: title.trim(),
-              poster_url:
-                poster_url?.trim() || null,
-              stream_url: null,
-              quality: "Multiple"
-            }
-          ])
-          .select()
-          .single();
+      const {
+        data: movie,
+        error: movieError
+      } = await supabase
+
+        .from("movies")
+
+        .insert([
+          {
+
+            title:
+              title.trim(),
+
+            poster_url:
+              poster_url?.trim() ||
+              null,
+
+            stream_url:
+              null,
+
+            quality:
+              "Multiple"
+
+          }
+        ])
+
+        .select()
+
+        .single();
+
 
       if (movieError) {
 
@@ -437,25 +628,47 @@ app.post(
 
       }
 
+
       // =================================================
-      // CREATE STREAMS
+      // CREATE STREAM RECORDS
       // =================================================
 
-      const streamRows = streams.map(stream => ({
-        movie_id: movie.id,
-        quality: stream.quality,
-        torrent_type: stream.torrentType,
-        torrent_data: stream.torrentData,
-        info_hash: stream.infoHash
-      }));
+      const streamRows =
+        streams.map(stream => ({
+
+          movie_id:
+            movie.id,
+
+          quality:
+            stream.quality,
+
+          torrent_type:
+            stream.torrentType,
+
+          torrent_data:
+            stream.torrentData,
+
+          info_hash:
+            stream.infoHash,
+
+          stream_url:
+            stream.streamUrl ||
+            null
+
+        }));
+
 
       const {
         data: insertedStreams,
         error: streamError
       } = await supabase
+
         .from("movie_streams")
+
         .insert(streamRows)
+
         .select();
+
 
       if (streamError) {
 
@@ -471,11 +684,13 @@ app.post(
 
       }
 
+
       // =================================================
       // SUCCESS
       // =================================================
 
       res.send(`
+
 <!DOCTYPE html>
 
 <html>
@@ -492,16 +707,25 @@ app.post(
 <style>
 
 body {
+
   font-family: Arial;
+
   max-width: 650px;
+
   margin: 40px auto;
+
   padding: 20px;
+
 }
 
 .box {
+
   border: 1px solid #ddd;
+
   border-radius: 12px;
+
   padding: 25px;
+
 }
 
 </style>
@@ -515,41 +739,78 @@ body {
 <h2>✅ Movie added</h2>
 
 <p>
+
 <strong>Movie:</strong>
-${escapeHtml(movie.title)}
+
+${escapeHtml(
+  movie.title
+)}
+
 </p>
 
+
 <p>
+
 <strong>Streams:</strong>
+
 ${insertedStreams.length}
+
 </p>
 
-${insertedStreams.map(stream => `
+
+${insertedStreams.map(
+  stream => `
+
 <p>
-<strong>${escapeHtml(stream.quality)}</strong>
+
+<strong>
+${escapeHtml(
+  stream.quality
+)}
+</strong>
+
 ✓
+
 </p>
-`).join("")}
+
+`
+).join("")}
+
 
 <p>
+
 <strong>Poster:</strong>
-${poster_url ? "✓ Added" : "Not provided"}
+
+${
+  poster_url
+    ? "✓ Added"
+    : "Not provided"
+}
+
 </p>
+
 
 <br>
 
+
 <a href="/admin">
+
 ← Add another movie
+
 </a>
+
 
 </div>
 
 </body>
 
 </html>
-      `);
 
-    } catch (error) {
+`);
+
+    }
+
+    catch (error) {
 
       console.error(
         "ADMIN ERROR:",
@@ -570,44 +831,62 @@ ${poster_url ? "✓ Added" : "Not provided"}
 // MANIFEST
 // =====================================================
 
-app.get("/manifest.json", (req, res) => {
+app.get(
+  "/manifest.json",
+  (req, res) => {
 
-  res.json({
+    res.json({
 
-    id: "com.cinemavault.myfavorites",
+      id:
+        "com.cinemavault.myfavorites",
 
-    version: "2.0.0",
+      version:
+        "2.1.0",
 
-    name: "My Favorites",
+      name:
+        "My Favorites",
 
-    description:
-      "Personal Stremio addon",
+      description:
+        "Personal Stremio addon",
 
-    resources: [
-      "catalog",
-      "meta",
-      "stream"
-    ],
+      resources: [
+        "catalog",
+        "meta",
+        "stream"
+      ],
 
-    types: [
-      "movie"
-    ],
+      types: [
+        "movie"
+      ],
 
-    catalogs: [
-      {
-        type: "movie",
-        id: "my-favorites",
-        name: "My Favorites"
+      catalogs: [
+
+        {
+
+          type:
+            "movie",
+
+          id:
+            "my-favorites",
+
+          name:
+            "My Favorites"
+
+        }
+
+      ],
+
+      behaviorHints: {
+
+        p2p:
+          true
+
       }
-    ],
 
-    behaviorHints: {
-      p2p: true
-    }
+    });
 
-  });
-
-});
+  }
+);
 
 // =====================================================
 // CATALOG
@@ -615,22 +894,29 @@ app.get("/manifest.json", (req, res) => {
 
 app.get(
   "/catalog/movie/my-favorites.json",
+
   async (req, res) => {
 
     try {
 
-      const { data, error } =
-        await supabase
-          .from("movies")
-          .select(
-            "id,title,poster_url"
-          )
-          .order(
-            "created_at",
-            {
-              ascending: false
-            }
-          );
+      const {
+        data,
+        error
+      } = await supabase
+
+        .from("movies")
+
+        .select(
+          "id,title,poster_url"
+        )
+
+        .order(
+          "created_at",
+          {
+            ascending: false
+          }
+        );
+
 
       if (error) {
 
@@ -645,31 +931,39 @@ app.get(
 
       }
 
-      const metas = data.map(movie => ({
 
-        id:
-          `movie-${movie.id}`,
+      const metas =
+        data.map(movie => ({
 
-        type:
-          "movie",
+          id:
+            `movie-${movie.id}`,
 
-        name:
-          movie.title,
+          type:
+            "movie",
 
-        ...(movie.poster_url
-          ? {
-              poster:
-                movie.poster_url
-            }
-          : {})
+          name:
+            movie.title,
 
-      }));
+          ...(movie.poster_url
+            ? {
+
+                poster:
+                  movie.poster_url
+
+              }
+
+            : {})
+
+        }));
+
 
       res.json({
         metas
       });
 
-    } catch (error) {
+    }
+
+    catch (error) {
 
       console.error(
         "CATALOG ERROR:",
@@ -691,6 +985,7 @@ app.get(
 
 app.get(
   "/meta/movie/:id.json",
+
   async (req, res) => {
 
     try {
@@ -701,20 +996,38 @@ app.get(
           ""
         );
 
-      const { data, error } =
-        await supabase
-          .from("movies")
-          .select("*")
-          .eq("id", id)
-          .single();
 
-      if (error || !data) {
+      const {
+        data,
+        error
+      } = await supabase
+
+        .from("movies")
+
+        .select("*")
+
+        .eq(
+          "id",
+          id
+        )
+
+        .single();
+
+
+      if (
+        error ||
+        !data
+      ) {
 
         return res.status(404).json({
-          error: "Movie not found"
+
+          error:
+            "Movie not found"
+
         });
 
       }
+
 
       res.json({
 
@@ -731,16 +1044,21 @@ app.get(
 
           ...(data.poster_url
             ? {
+
                 poster:
                   data.poster_url
+
               }
+
             : {})
 
         }
 
       });
 
-    } catch (error) {
+    }
+
+    catch (error) {
 
       console.error(
         "META ERROR:",
@@ -748,7 +1066,10 @@ app.get(
       );
 
       res.status(500).json({
-        error: "Server error"
+
+        error:
+          "Server error"
+
       });
 
     }
@@ -762,6 +1083,7 @@ app.get(
 
 app.get(
   "/stream/movie/:id.json",
+
   async (req, res) => {
 
     try {
@@ -772,6 +1094,7 @@ app.get(
           ""
         );
 
+
       // =================================================
       // NEW MULTI-QUALITY SYSTEM
       // =================================================
@@ -780,15 +1103,23 @@ app.get(
         data: streams,
         error: streamError
       } = await supabase
+
         .from("movie_streams")
+
         .select("*")
-        .eq("movie_id", id)
+
+        .eq(
+          "movie_id",
+          id
+        )
+
         .order(
           "quality",
           {
             ascending: false
           }
         );
+
 
       if (
         !streamError &&
@@ -798,44 +1129,102 @@ app.get(
 
         return res.json({
 
-          streams: streams.map(stream => ({
+          streams:
+            streams.map(
+              stream => {
 
-            name:
-              stream.quality,
+                // =====================================
+                // DIRECT HTTP / HTTPS URL
+                // =====================================
 
-            description:
-              `${stream.quality} • Torrent`,
+                if (
+                  stream.stream_url
+                ) {
 
-            infoHash:
-              stream.info_hash,
+                  return {
 
-            type:
-              "torrent",
+                    name:
+                      stream.quality,
 
-            behaviorHints: {
-              bingeGroup:
-                `myfavorites-${stream.quality}`
-            }
+                    title:
+                      `${stream.quality} • Direct`,
 
-          }))
+                    description:
+                      `${stream.quality} • Direct Stream`,
+
+                    url:
+                      stream.stream_url,
+
+                    behaviorHints: {
+
+                      bingeGroup:
+                        `myfavorites-${stream.quality}`
+
+                    }
+
+                  };
+
+                }
+
+
+                // =====================================
+                // TORRENT
+                // =====================================
+
+                return {
+
+                  name:
+                    stream.quality,
+
+                  title:
+                    `${stream.quality} • Torrent`,
+
+                  description:
+                    `${stream.quality} • Torrent`,
+
+                  infoHash:
+                    stream.info_hash,
+
+                  type:
+                    "torrent",
+
+                  behaviorHints: {
+
+                    bingeGroup:
+                      `myfavorites-${stream.quality}`
+
+                  }
+
+                };
+
+              }
+            )
 
         });
 
       }
 
+
       // =================================================
-      // OLD SYSTEM FALLBACK
-      // Keeps existing movies working
+      // OLD MOVIE SYSTEM
       // =================================================
 
       const {
         data: movie,
         error: movieError
       } = await supabase
+
         .from("movies")
+
         .select("*")
-        .eq("id", id)
+
+        .eq(
+          "id",
+          id
+        )
+
         .single();
+
 
       if (
         movieError ||
@@ -843,37 +1232,67 @@ app.get(
       ) {
 
         return res.json({
+
           streams: []
+
         });
 
       }
 
-      if (movie.stream_url) {
+
+      // =================================================
+      // OLD DIRECT URL
+      // =================================================
+
+      if (
+        movie.stream_url
+      ) {
 
         return res.json({
 
           streams: [
+
             {
+
               name:
+                movie.quality ||
+                "Direct Stream",
+
+              title:
                 movie.quality ||
                 "Direct Stream",
 
               url:
                 movie.stream_url
+
             }
+
           ]
 
         });
 
       }
 
-      if (movie.info_hash) {
+
+      // =================================================
+      // OLD TORRENT
+      // =================================================
+
+      if (
+        movie.info_hash
+      ) {
 
         return res.json({
 
           streams: [
+
             {
+
               name:
+                movie.quality ||
+                "Torrent",
+
+              title:
                 movie.quality ||
                 "Torrent",
 
@@ -886,18 +1305,25 @@ app.get(
 
               type:
                 "torrent"
+
             }
+
           ]
 
         });
 
       }
 
+
       return res.json({
+
         streams: []
+
       });
 
-    } catch (error) {
+    }
+
+    catch (error) {
 
       console.error(
         "STREAM ERROR:",
@@ -905,7 +1331,9 @@ app.get(
       );
 
       res.json({
+
         streams: []
+
       });
 
     }
@@ -949,12 +1377,15 @@ function escapeHtml(value) {
 }
 
 // =====================================================
-// START
+// START SERVER
 // =====================================================
 
 app.listen(
+
   PORT,
+
   "0.0.0.0",
+
   () => {
 
     console.log(
@@ -962,4 +1393,5 @@ app.listen(
     );
 
   }
+
 );
