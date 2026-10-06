@@ -1,7 +1,7 @@
 const express = require("express");
 const multer = require("multer");
 const { createClient } = require("@supabase/supabase-js");
-const parseTorrent = require("parse-torrent");
+const parseTorrent = require("parse-torrent-file");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
