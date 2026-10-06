@@ -211,34 +211,58 @@ app.post("/admin/add", upload.single("torrent"), async (req, res) => {
   try {
     const { title, magnet, quality } = req.body;
 
-    if (!title) {
+    if (!title || !title.trim()) {
       return res.status(400).send("Movie title is required");
     }
 
     if (!magnet && !req.file) {
-      return res.status(400).send("Provide a magnet link or .torrent file");
+      return res.status(400).send(
+        "Provide a magnet link or .torrent file"
+      );
     }
 
     let torrentType = null;
     let torrentData = null;
     let infoHash = null;
 
+    // =================================================
     // Magnet link
-    if (magnet) {
+    // =================================================
+
+    if (magnet && magnet.trim()) {
       torrentType = "magnet";
       torrentData = magnet.trim();
 
       try {
         const parsed = parseTorrent(torrentData);
+
         infoHash = parsed.infoHash || null;
+
       } catch (err) {
-        return res.status(400).send("Invalid magnet link");
+        console.error("Magnet parsing error:", err);
+
+        return res.status(400).send(
+          "Invalid magnet link"
+        );
       }
     }
 
+    // =================================================
     // .torrent file
+    // =================================================
+
     if (req.file) {
       torrentType = "torrent";
+
+      if (
+        !req.file.originalname
+          .toLowerCase()
+          .endsWith(".torrent")
+      ) {
+        return res.status(400).send(
+          "Please upload a .torrent file."
+        );
+      }
 
       try {
         const parsed = parseTorrent(req.file.buffer);
@@ -246,15 +270,29 @@ app.post("/admin/add", upload.single("torrent"), async (req, res) => {
         infoHash = parsed.infoHash || null;
 
         if (!infoHash) {
-          return res.status(400).send("Could not extract torrent info hash");
+          return res.status(400).send(
+            "Could not extract torrent info hash"
+          );
         }
 
-        torrentData = req.file.buffer.toString("base64");
+        torrentData =
+          req.file.buffer.toString("base64");
+
       } catch (err) {
-        console.error("Torrent parsing error:", err);
-        return res.status(400).send("Invalid .torrent file");
+        console.error(
+          "Torrent parsing error:",
+          err
+        );
+
+        return res.status(400).send(
+          "Invalid .torrent file"
+        );
       }
     }
+
+    // =================================================
+    // Insert into Supabase
+    // =================================================
 
     const { data, error } = await supabase
       .from("movies")
@@ -268,148 +306,90 @@ app.post("/admin/add", upload.single("torrent"), async (req, res) => {
           stream_url: null
         }
       ])
-      .select();
+      .select()
+      .single();
 
     if (error) {
-      console.error("Supabase insert error:", error);
-      return res.status(500).send(`Database error: ${error.message}`);
+      console.error(
+        "SUPABASE INSERT ERROR:",
+        error
+      );
+
+      return res.status(500).send(
+        "Database error: " + error.message
+      );
     }
 
+    // =================================================
+    // Success
+    // =================================================
+
     res.send(`
-      <h2>Movie added successfully</h2>
-      <p><b>Title:</b> ${escapeHtml(title)}</p>
-      <p><b>Type:</b> ${torrentType}</p>
-      <p><b>Info Hash:</b> ${infoHash || "Not found"}</p>
-      <p><b>ID:</b> ${data[0].id}</p>
-      <br>
-      <a href="/admin">Add another movie</a>
-    `);
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Server error");
-  }
-});
-
-      // .torrent
-      else if (req.file) {
-
-        if (
-          !req.file.originalname
-            .toLowerCase()
-            .endsWith(".torrent")
-        ) {
-          return res.status(400).send(
-            "Please upload a .torrent file."
-          );
-        }
-
-        torrentType = "torrent";
-
-        torrentData =
-          req.file.buffer.toString("base64");
-
-      }
-
-      else {
-
-        return res.status(400).send(
-          "Please provide a magnet link or .torrent file."
-        );
-
-      }
-
-      // Insert into Supabase
-      const { data, error } = await supabase
-        .from("movies")
-        .insert({
-          title: title,
-          quality: quality,
-          torrent_type: torrentType,
-          torrent_data: torrentData
-        })
-        .select()
-        .single();
-
-      if (error) {
-
-        console.error(
-          "SUPABASE INSERT ERROR:",
-          error
-        );
-
-        return res.status(500).send(
-          "Database error: " +
-          error.message
-        );
-      }
-
-      res.send(`
 <!DOCTYPE html>
 <html>
 
 <head>
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
 
-<meta name="viewport"
-      content="width=device-width, initial-scale=1">
-
-<title>Movie Added</title>
-
+  <title>Movie Added</title>
 </head>
 
 <body style="
-  font-family:Arial;
-  max-width:600px;
-  margin:40px auto;
-  padding:20px;
+  font-family: Arial;
+  max-width: 600px;
+  margin: 40px auto;
+  padding: 20px;
 ">
 
-<h2>✅ Movie added successfully</h2>
+<h2>Movie added successfully</h2>
 
 <p>
-<strong>Movie:</strong>
-${escapeHtml(data.title)}
+  <strong>Movie:</strong>
+  ${escapeHtml(data.title)}
 </p>
 
 <p>
-<strong>Source:</strong>
-${escapeHtml(data.torrent_type)}
+  <strong>Source:</strong>
+  ${escapeHtml(data.torrent_type)}
 </p>
 
 <p>
-<strong>Quality:</strong>
-${escapeHtml(data.quality)}
+  <strong>Quality:</strong>
+  ${escapeHtml(data.quality)}
+</p>
+
+<p>
+  <strong>Info Hash:</strong>
+  ${escapeHtml(data.info_hash || "Not found")}
+</p>
+
+<p>
+  <strong>Database ID:</strong>
+  ${data.id}
 </p>
 
 <br>
 
 <a href="/admin">
-← Add another movie
+  Add another movie
 </a>
 
 </body>
-
 </html>
-      `);
+    `);
 
-    }
+  } catch (error) {
+    console.error(
+      "ADMIN ERROR:",
+      error
+    );
 
-    catch (error) {
-
-      console.error(
-        "ADMIN ERROR:",
-        error
-      );
-
-      res.status(500).send(
-        "Server error: " +
-        error.message
-      );
-
-    }
-
+    res.status(500).send(
+      "Server error: " + error.message
+    );
   }
-);
+});
 
 // =====================================================
 // MANIFEST
@@ -439,13 +419,11 @@ app.get("/manifest.json", (req, res) => {
     ],
 
     catalogs: [
-
       {
         type: "movie",
         id: "my-favorites",
         name: "My Favorites"
       }
-
     ]
 
   });
@@ -508,9 +486,7 @@ app.get(
         metas
       });
 
-    }
-
-    catch (error) {
+    } catch (error) {
 
       console.error(
         "CATALOG SERVER ERROR:",
@@ -544,13 +520,9 @@ app.get(
 
       const { data, error } =
         await supabase
-
           .from("movies")
-
           .select("*")
-
           .eq("id", id)
-
           .single();
 
       if (error || !data) {
@@ -585,9 +557,7 @@ app.get(
 
       });
 
-    }
-
-    catch (error) {
+    } catch (error) {
 
       console.error(
         "META ERROR:",
@@ -621,13 +591,9 @@ app.get(
 
       const { data, error } =
         await supabase
-
           .from("movies")
-
           .select("*")
-
           .eq("id", id)
-
           .single();
 
       if (error || !data) {
@@ -646,7 +612,6 @@ app.get(
           streams: [
 
             {
-
               name:
                 "My Server",
 
@@ -656,7 +621,6 @@ app.get(
 
               url:
                 data.stream_url
-
             }
 
           ]
@@ -665,9 +629,13 @@ app.get(
 
       }
 
-      // Torrent stored but not yet converted
-      if (data.torrent_type &&
-          data.torrent_data) {
+      // Torrent information exists,
+      // but there is no torrent-to-HTTP
+      // streaming backend yet.
+      if (
+        data.torrent_type &&
+        (data.torrent_data || data.info_hash)
+      ) {
 
         return res.json({
 
