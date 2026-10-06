@@ -1,4 +1,5 @@
 const express = require("express");
+const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -16,17 +17,18 @@ app.use((req, res, next) => {
   next();
 });
 
-const movies = {
-  "big-buck-bunny": {
-    name: "Big Buck Bunny",
-    url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
-  }
-};
+// Supabase
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
 
+// Home
 app.get("/", (req, res) => {
   res.send("My Favorites Stremio Addon is running!");
 });
 
+// Manifest
 app.get("/manifest.json", (req, res) => {
   res.json({
     id: "com.cinemavault.myfavorites",
@@ -45,54 +47,103 @@ app.get("/manifest.json", (req, res) => {
   });
 });
 
-app.get("/catalog/movie/my-favorites.json", (req, res) => {
-  res.json({
-    metas: Object.entries(movies).map(([id, movie]) => ({
-      id,
-      type: "movie",
-      name: movie.name
-    }))
-  });
-});
+// Catalog
+app.get("/catalog/movie/my-favorites.json", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("movies")
+      .select("id,title,poster_url");
 
-app.get("/meta/movie/:id.json", (req, res) => {
-  const movie = movies[req.params.id];
-
-  if (!movie) {
-    return res.status(404).json({
-      error: "Movie not found"
-    });
-  }
-
-  res.json({
-    meta: {
-      id: req.params.id,
-      type: "movie",
-      name: movie.name
+    if (error) {
+      console.error(error);
+      return res.status(500).json({ metas: [] });
     }
-  });
+
+    const metas = data.map(movie => ({
+      id: `movie-${movie.id}`,
+      type: "movie",
+      name: movie.title,
+      ...(movie.poster_url
+        ? { poster: movie.poster_url }
+        : {})
+    }));
+
+    res.json({ metas });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ metas: [] });
+  }
 });
 
-app.get("/stream/movie/:id.json", (req, res) => {
-  const movie = movies[req.params.id];
+// Metadata
+app.get("/meta/movie/:id.json", async (req, res) => {
+  try {
+    const id = req.params.id.replace("movie-", "");
 
-  if (!movie) {
-    return res.status(404).json({
-      streams: []
+    const { data, error } = await supabase
+      .from("movies")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({
+        error: "Movie not found"
+      });
+    }
+
+    res.json({
+      meta: {
+        id: `movie-${data.id}`,
+        type: "movie",
+        name: data.title,
+        ...(data.poster_url
+          ? { poster: data.poster_url }
+          : {})
+      }
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: "Server error"
     });
   }
-
-  res.json({
-    streams: [
-      {
-        name: "My Server",
-        title: "Direct Stream",
-        url: movie.url
-      }
-    ]
-  });
 });
 
+// Stream
+app.get("/stream/movie/:id.json", async (req, res) => {
+  try {
+    const id = req.params.id.replace("movie-", "");
+
+    const { data, error } = await supabase
+      .from("movies")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error || !data) {
+      return res.json({ streams: [] });
+    }
+
+    res.json({
+      streams: [
+        {
+          name: "My Server",
+          title: data.quality || "Direct Stream",
+          url: data.stream_url
+        }
+      ]
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.json({ streams: [] });
+  }
+});
+
+// Start
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Addon running on port ${PORT}`);
 });
