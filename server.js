@@ -50,14 +50,30 @@ app.get("/manifest.json", (req, res) => {
 // Catalog
 app.get("/catalog/movie/my-favorites.json", async (req, res) => {
   try {
+    console.log("Catalog request received");
+
+    console.log("SUPABASE_URL exists:",
+      !!process.env.SUPABASE_URL
+    );
+
+    console.log("SUPABASE_KEY exists:",
+      !!process.env.SUPABASE_KEY
+    );
+
     const { data, error } = await supabase
       .from("movies")
-      .select("id,title,poster_url");
+      .select("id,title,poster_url,stream_url,quality");
 
     if (error) {
-      console.error(error);
-      return res.status(500).json({ metas: [] });
+      console.error("SUPABASE ERROR:", error);
+
+      return res.status(500).json({
+        error: "Supabase query failed",
+        details: error.message
+      });
     }
+
+    console.log("Movies found:", data);
 
     const metas = data.map(movie => ({
       id: `movie-${movie.id}`,
@@ -71,8 +87,12 @@ app.get("/catalog/movie/my-favorites.json", async (req, res) => {
     res.json({ metas });
 
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ metas: [] });
+    console.error("SERVER ERROR:", error);
+
+    res.status(500).json({
+      error: "Server error",
+      details: error.message
+    });
   }
 });
 
