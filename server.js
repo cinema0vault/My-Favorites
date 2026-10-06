@@ -6,10 +6,6 @@ const parseTorrent = require("parse-torrent-file");
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// =====================================================
-// Upload configuration
-// =====================================================
-
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
@@ -18,7 +14,7 @@ const upload = multer({
 });
 
 // =====================================================
-// CORS - required by Stremio
+// CORS
 // =====================================================
 
 app.use((req, res, next) => {
@@ -37,16 +33,8 @@ app.use((req, res, next) => {
 });
 
 // =====================================================
-// Supabase
+// SUPABASE
 // =====================================================
-
-if (!process.env.SUPABASE_URL) {
-  console.error("ERROR: SUPABASE_URL is missing");
-}
-
-if (!process.env.SUPABASE_KEY) {
-  console.error("ERROR: SUPABASE_KEY is missing");
-}
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -54,7 +42,7 @@ const supabase = createClient(
 );
 
 // =====================================================
-// Home
+// HOME
 // =====================================================
 
 app.get("/", (req, res) => {
@@ -70,68 +58,100 @@ app.get("/admin", (req, res) => {
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>My Favorites Manager</title>
+<meta charset="UTF-8">
 
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1"
+>
 
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 700px;
-      margin: 40px auto;
-      padding: 20px;
-      background: #f5f5f5;
-    }
+<title>My Favorites Manager</title>
 
-    .box {
-      background: white;
-      border: 1px solid #ddd;
-      padding: 25px;
-      border-radius: 12px;
-    }
+<style>
 
-    h1 {
-      margin-top: 0;
-    }
+* {
+  box-sizing: border-box;
+}
 
-    label {
-      display: block;
-      margin-top: 15px;
-      font-weight: bold;
-    }
+body {
+  font-family: Arial, sans-serif;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 25px;
+  background: #111;
+  color: white;
+}
 
-    input,
-    select,
-    button {
-      width: 100%;
-      padding: 12px;
-      margin-top: 7px;
-      font-size: 15px;
-    }
+.box {
+  background: #1c1c1c;
+  padding: 25px;
+  border-radius: 16px;
+}
 
-    button {
-      margin-top: 20px;
-      cursor: pointer;
-      font-weight: bold;
-    }
+h1 {
+  margin-top: 0;
+}
 
-    .hint {
-      color: #666;
-      font-size: 13px;
-    }
-  </style>
+h2 {
+  margin-top: 30px;
+}
+
+label {
+  display: block;
+  margin-top: 18px;
+  margin-bottom: 7px;
+  font-weight: bold;
+}
+
+input,
+button {
+  width: 100%;
+  padding: 13px;
+  border-radius: 8px;
+  border: 1px solid #444;
+  font-size: 15px;
+}
+
+input {
+  background: #292929;
+  color: white;
+}
+
+button {
+  margin-top: 25px;
+  background: #20c76a;
+  color: white;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #18a958;
+}
+
+.version {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #333;
+  border-radius: 12px;
+}
+
+.hint {
+  color: #aaa;
+  font-size: 13px;
+}
+
+</style>
+
 </head>
 
 <body>
 
 <div class="box">
 
-<h1>My Favorites Manager</h1>
+<h1>🎬 My Favorites</h1>
 
 <form
   action="/admin/add"
@@ -139,60 +159,77 @@ app.get("/admin", (req, res) => {
   enctype="multipart/form-data"
 >
 
-  <label>Movie name</label>
+<label>Movie name</label>
 
-  <input
-    type="text"
-    name="title"
-    placeholder="Movie name"
-    required
-  >
+<input
+  type="text"
+  name="title"
+  placeholder="Movie name"
+  required
+>
 
-  <label>Magnet link</label>
+<label>Poster URL</label>
 
-  <input
-    type="text"
-    name="magnet"
-    placeholder="magnet:?xt=urn:btih:..."
-  >
+<input
+  type="url"
+  name="poster_url"
+  placeholder="https://example.com/poster.jpg"
+>
 
-  <p class="hint">
-    Enter a magnet link OR upload a .torrent file.
-  </p>
+<p class="hint">
+Use a direct image URL ending in .jpg, .jpeg, .png or .webp.
+</p>
 
-  <label>.torrent file</label>
 
-  <input
-    type="file"
-    name="torrent"
-    accept=".torrent"
-  >
+<div class="version">
 
-  <label>Quality</label>
+<h2>1080p</h2>
 
-  <select name="quality">
+<label>1080p Magnet Link</label>
 
-    <option value="2160p">
-      2160p
-    </option>
+<input
+  type="text"
+  name="magnet1080"
+  placeholder="magnet:?xt=urn:btih:..."
+>
 
-    <option value="1080p" selected>
-      1080p
-    </option>
+<label>OR 1080p .torrent</label>
 
-    <option value="720p">
-      720p
-    </option>
+<input
+  type="file"
+  name="torrent1080"
+  accept=".torrent"
+>
 
-    <option value="480p">
-      480p
-    </option>
+</div>
 
-  </select>
 
-  <button type="submit">
-    ADD MOVIE
-  </button>
+<div class="version">
+
+<h2>4K</h2>
+
+<label>4K Magnet Link</label>
+
+<input
+  type="text"
+  name="magnet4k"
+  placeholder="magnet:?xt=urn:btih:..."
+>
+
+<label>OR 4K .torrent</label>
+
+<input
+  type="file"
+  name="torrent4k"
+  accept=".torrent"
+>
+
+</div>
+
+
+<button type="submit">
+ADD MOVIE
+</button>
 
 </form>
 
@@ -204,196 +241,330 @@ app.get("/admin", (req, res) => {
 });
 
 // =====================================================
+// PARSE TORRENT SOURCE
+// =====================================================
+
+function parseMagnet(magnet) {
+
+  const match = magnet.match(
+    /xt=urn:btih:([a-zA-Z0-9]+)/i
+  );
+
+  if (!match) {
+    throw new Error("Invalid magnet link");
+  }
+
+  return {
+    torrentType: "magnet",
+    torrentData: magnet.trim(),
+    infoHash: match[1].toLowerCase()
+  };
+}
+
+
+function parseTorrentFile(file) {
+
+  if (
+    !file.originalname
+      .toLowerCase()
+      .endsWith(".torrent")
+  ) {
+    throw new Error("Please upload a .torrent file");
+  }
+
+  const parsed = parseTorrent(file.buffer);
+
+  if (!parsed.infoHash) {
+    throw new Error(
+      "Could not extract torrent info hash"
+    );
+  }
+
+  return {
+    torrentType: "torrent",
+    torrentData: file.buffer.toString("base64"),
+    infoHash: parsed.infoHash.toLowerCase()
+  };
+}
+
+// =====================================================
 // ADD MOVIE
 // =====================================================
 
-app.post("/admin/add", upload.single("torrent"), async (req, res) => {
-  try {
-    const { title, magnet, quality } = req.body;
-
-    if (!title || !title.trim()) {
-      return res.status(400).send("Movie title is required");
+app.post(
+  "/admin/add",
+  upload.fields([
+    {
+      name: "torrent1080",
+      maxCount: 1
+    },
+    {
+      name: "torrent4k",
+      maxCount: 1
     }
+  ]),
+  async (req, res) => {
 
-    if (!magnet && !req.file) {
-      return res.status(400).send(
-        "Provide a magnet link or .torrent file"
-      );
-    }
+    try {
 
-    let torrentType = null;
-    let torrentData = null;
-    let infoHash = null;
+      const {
+        title,
+        poster_url,
+        magnet1080,
+        magnet4k
+      } = req.body;
 
-    // =================================================
-    // Magnet link
-    // =================================================
-
-    if (magnet && magnet.trim()) {
-      torrentType = "magnet";
-      torrentData = magnet.trim();
-
-      try {
-        const match = magnet.match(/xt=urn:btih:([a-zA-Z0-9]+)/i);
-
-        if (!match) {
-        return res.status(400).send("Invalid magnet link");
-          }
-
-infoHash = match[1].toLowerCase();
-
-      } catch (err) {
-        console.error("Magnet parsing error:", err);
-
+      if (!title || !title.trim()) {
         return res.status(400).send(
-          "Invalid magnet link"
+          "Movie title is required"
         );
       }
-    }
 
-    // =================================================
-    // .torrent file
-    // =================================================
+      const torrent1080 =
+        req.files?.torrent1080?.[0] || null;
 
-    if (req.file) {
-      torrentType = "torrent";
+      const torrent4k =
+        req.files?.torrent4k?.[0] || null;
+
+      const streams = [];
+
+      // =================================================
+      // 1080p
+      // =================================================
 
       if (
-        !req.file.originalname
-          .toLowerCase()
-          .endsWith(".torrent")
+        (magnet1080 && magnet1080.trim()) ||
+        torrent1080
       ) {
-        return res.status(400).send(
-          "Please upload a .torrent file."
-        );
-      }
 
-      try {
-        const parsed = parseTorrent(req.file.buffer);
+        try {
 
-        infoHash = parsed.infoHash || null;
+          let parsed;
 
-        if (!infoHash) {
+          if (magnet1080 && magnet1080.trim()) {
+            parsed = parseMagnet(magnet1080);
+          } else {
+            parsed = parseTorrentFile(torrent1080);
+          }
+
+          streams.push({
+            quality: "1080p",
+            ...parsed
+          });
+
+        } catch (error) {
+
           return res.status(400).send(
-            "Could not extract torrent info hash"
+            "1080p error: " + error.message
           );
+
         }
 
-        torrentData =
-          req.file.buffer.toString("base64");
+      }
 
-      } catch (err) {
-        console.error(
-          "Torrent parsing error:",
-          err
-        );
+      // =================================================
+      // 4K
+      // =================================================
+
+      if (
+        (magnet4k && magnet4k.trim()) ||
+        torrent4k
+      ) {
+
+        try {
+
+          let parsed;
+
+          if (magnet4k && magnet4k.trim()) {
+            parsed = parseMagnet(magnet4k);
+          } else {
+            parsed = parseTorrentFile(torrent4k);
+          }
+
+          streams.push({
+            quality: "4K",
+            ...parsed
+          });
+
+        } catch (error) {
+
+          return res.status(400).send(
+            "4K error: " + error.message
+          );
+
+        }
+
+      }
+
+      if (streams.length === 0) {
 
         return res.status(400).send(
-          "Invalid .torrent file"
+          "Add at least one 1080p or 4K torrent."
         );
+
       }
-    }
 
-    // =================================================
-    // Insert into Supabase
-    // =================================================
+      // =================================================
+      // CREATE MOVIE
+      // =================================================
 
-    const { data, error } = await supabase
-      .from("movies")
-      .insert([
-        {
-          title: title.trim(),
-          quality: quality || "1080p",
-          torrent_type: torrentType,
-          torrent_data: torrentData,
-          info_hash: infoHash,
-          stream_url: null
-        }
-      ])
-      .select()
-      .single();
+      const { data: movie, error: movieError } =
+        await supabase
+          .from("movies")
+          .insert([
+            {
+              title: title.trim(),
+              poster_url:
+                poster_url?.trim() || null,
+              stream_url: null,
+              quality: "Multiple"
+            }
+          ])
+          .select()
+          .single();
 
-    if (error) {
-      console.error(
-        "SUPABASE INSERT ERROR:",
-        error
-      );
+      if (movieError) {
 
-      return res.status(500).send(
-        "Database error: " + error.message
-      );
-    }
+        console.error(
+          "MOVIE INSERT ERROR:",
+          movieError
+        );
 
-    // =================================================
-    // Success
-    // =================================================
+        return res.status(500).send(
+          "Movie database error: " +
+          movieError.message
+        );
 
-    res.send(`
+      }
+
+      // =================================================
+      // CREATE STREAMS
+      // =================================================
+
+      const streamRows = streams.map(stream => ({
+        movie_id: movie.id,
+        quality: stream.quality,
+        torrent_type: stream.torrentType,
+        torrent_data: stream.torrentData,
+        info_hash: stream.infoHash
+      }));
+
+      const {
+        data: insertedStreams,
+        error: streamError
+      } = await supabase
+        .from("movie_streams")
+        .insert(streamRows)
+        .select();
+
+      if (streamError) {
+
+        console.error(
+          "STREAM INSERT ERROR:",
+          streamError
+        );
+
+        return res.status(500).send(
+          "Stream database error: " +
+          streamError.message
+        );
+
+      }
+
+      // =================================================
+      // SUCCESS
+      // =================================================
+
+      res.send(`
 <!DOCTYPE html>
+
 <html>
 
 <head>
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1">
 
-  <title>Movie Added</title>
-</head>
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1"
+>
 
-<body style="
+<title>Movie Added</title>
+
+<style>
+
+body {
   font-family: Arial;
-  max-width: 600px;
+  max-width: 650px;
   margin: 40px auto;
   padding: 20px;
-">
+}
 
-<h2>Movie added successfully</h2>
+.box {
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 25px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="box">
+
+<h2>✅ Movie added</h2>
 
 <p>
-  <strong>Movie:</strong>
-  ${escapeHtml(data.title)}
+<strong>Movie:</strong>
+${escapeHtml(movie.title)}
 </p>
 
 <p>
-  <strong>Source:</strong>
-  ${escapeHtml(data.torrent_type)}
+<strong>Streams:</strong>
+${insertedStreams.length}
 </p>
 
+${insertedStreams.map(stream => `
 <p>
-  <strong>Quality:</strong>
-  ${escapeHtml(data.quality)}
+<strong>${escapeHtml(stream.quality)}</strong>
+✓
 </p>
+`).join("")}
 
 <p>
-  <strong>Info Hash:</strong>
-  ${escapeHtml(data.info_hash || "Not found")}
-</p>
-
-<p>
-  <strong>Database ID:</strong>
-  ${data.id}
+<strong>Poster:</strong>
+${poster_url ? "✓ Added" : "Not provided"}
 </p>
 
 <br>
 
 <a href="/admin">
-  Add another movie
+← Add another movie
 </a>
 
+</div>
+
 </body>
+
 </html>
-    `);
+      `);
 
-  } catch (error) {
-    console.error(
-      "ADMIN ERROR:",
-      error
-    );
+    } catch (error) {
 
-    res.status(500).send(
-      "Server error: " + error.message
-    );
+      console.error(
+        "ADMIN ERROR:",
+        error
+      );
+
+      res.status(500).send(
+        "Server error: " +
+        error.message
+      );
+
+    }
+
   }
-});
+);
 
 // =====================================================
 // MANIFEST
@@ -405,7 +576,7 @@ app.get("/manifest.json", (req, res) => {
 
     id: "com.cinemavault.myfavorites",
 
-    version: "1.0.0",
+    version: "2.0.0",
 
     name: "My Favorites",
 
@@ -428,7 +599,11 @@ app.get("/manifest.json", (req, res) => {
         id: "my-favorites",
         name: "My Favorites"
       }
-    ]
+    ],
+
+    behaviorHints: {
+      p2p: true
+    }
 
   });
 
@@ -444,17 +619,18 @@ app.get(
 
     try {
 
-      const { data, error } = await supabase
-        .from("movies")
-        .select(
-          "id,title,poster_url,quality"
-        )
-        .order(
-          "created_at",
-          {
-            ascending: false
-          }
-        );
+      const { data, error } =
+        await supabase
+          .from("movies")
+          .select(
+            "id,title,poster_url"
+          )
+          .order(
+            "created_at",
+            {
+              ascending: false
+            }
+          );
 
       if (error) {
 
@@ -463,7 +639,7 @@ app.get(
           error
         );
 
-        return res.status(500).json({
+        return res.json({
           metas: []
         });
 
@@ -471,11 +647,14 @@ app.get(
 
       const metas = data.map(movie => ({
 
-        id: `movie-${movie.id}`,
+        id:
+          `movie-${movie.id}`,
 
-        type: "movie",
+        type:
+          "movie",
 
-        name: movie.title,
+        name:
+          movie.title,
 
         ...(movie.poster_url
           ? {
@@ -493,11 +672,11 @@ app.get(
     } catch (error) {
 
       console.error(
-        "CATALOG SERVER ERROR:",
+        "CATALOG ERROR:",
         error
       );
 
-      res.status(500).json({
+      res.json({
         metas: []
       });
 
@@ -507,7 +686,7 @@ app.get(
 );
 
 // =====================================================
-// METADATA
+// META
 // =====================================================
 
 app.get(
@@ -593,14 +772,75 @@ app.get(
           ""
         );
 
-      const { data, error } =
-        await supabase
-          .from("movies")
-          .select("*")
-          .eq("id", id)
-          .single();
+      // =================================================
+      // NEW MULTI-QUALITY SYSTEM
+      // =================================================
 
-      if (error || !data) {
+      const {
+        data: streams,
+        error: streamError
+      } = await supabase
+        .from("movie_streams")
+        .select("*")
+        .eq("movie_id", id)
+        .order(
+          "quality",
+          {
+            ascending: false
+          }
+        );
+
+      if (
+        !streamError &&
+        streams &&
+        streams.length > 0
+      ) {
+
+        return res.json({
+
+          streams: streams.map(stream => ({
+
+            name:
+              stream.quality,
+
+            description:
+              `${stream.quality} • Torrent`,
+
+            infoHash:
+              stream.info_hash,
+
+            type:
+              "torrent",
+
+            behaviorHints: {
+              bingeGroup:
+                `myfavorites-${stream.quality}`
+            }
+
+          }))
+
+        });
+
+      }
+
+      // =================================================
+      // OLD SYSTEM FALLBACK
+      // Keeps existing movies working
+      // =================================================
+
+      const {
+        data: movie,
+        error: movieError
+      } = await supabase
+        .from("movies")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (
+        movieError ||
+        !movie
+      ) {
 
         return res.json({
           streams: []
@@ -608,66 +848,73 @@ app.get(
 
       }
 
-      // Direct HTTP stream
-      if (data.stream_url) {
+      if (movie.stream_url) {
 
         return res.json({
 
           streams: [
-
             {
               name:
-                "My Server",
-
-              title:
-                data.quality ||
+                movie.quality ||
                 "Direct Stream",
 
               url:
-                data.stream_url
+                movie.stream_url
             }
-
           ]
 
         });
 
       }
 
-      // Torrent stream
-      if (data.info_hash) {
+      if (movie.info_hash) {
+
         return res.json({
+
           streams: [
-        {
-        name: "My Favorites",
-        title: data.title || "Torrent",
-        infoHash: data.info_hash,
-        type: "torrent"
+            {
+              name:
+                movie.quality ||
+                "Torrent",
+
+              description:
+                movie.quality ||
+                "Torrent",
+
+              infoHash:
+                movie.info_hash,
+
+              type:
+                "torrent"
+            }
+          ]
+
+        });
+
       }
-    ]
-  });
-}
+
       return res.json({
         streams: []
       });
 
     } catch (error) {
+
       console.error(
         "STREAM ERROR:",
         error
       );
 
-      return res.json({
+      res.json({
         streams: []
       });
+
     }
 
   }
-);      
-
-
+);
 
 // =====================================================
-// HTML escaping
+// HTML ESCAPE
 // =====================================================
 
 function escapeHtml(value) {
@@ -702,7 +949,7 @@ function escapeHtml(value) {
 }
 
 // =====================================================
-// START SERVER
+// START
 // =====================================================
 
 app.listen(
