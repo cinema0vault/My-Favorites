@@ -1,6 +1,7 @@
 const express = require("express");
 const multer = require("multer");
 const { createClient } = require("@supabase/supabase-js");
+const parseTorrent = require("parse-torrent");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -206,39 +207,89 @@ app.get("/admin", (req, res) => {
 // ADD MOVIE
 // =====================================================
 
-app.post(
-  "/admin/add",
-  upload.single("torrent"),
-  async (req, res) => {
+app.post("/admin/add", upload.single("torrent"), async (req, res) => {
+  try {
+    const { title, magnet, quality } = req.body;
 
-    try {
+    if (!title) {
+      return res.status(400).send("Movie title is required");
+    }
 
-      const title = req.body.title?.trim();
-      const magnet = req.body.magnet?.trim();
-      const quality = req.body.quality || "1080p";
+    if (!magnet && !req.file) {
+      return res.status(400).send("Provide a magnet link or .torrent file");
+    }
 
-      if (!title) {
-        return res.status(400).send(
-          "Movie name is required."
-        );
+    let torrentType = null;
+    let torrentData = null;
+    let infoHash = null;
+
+    // Magnet link
+    if (magnet) {
+      torrentType = "magnet";
+      torrentData = magnet.trim();
+
+      try {
+        const parsed = parseTorrent(torrentData);
+        infoHash = parsed.infoHash || null;
+      } catch (err) {
+        return res.status(400).send("Invalid magnet link");
       }
+    }
 
-      let torrentType = null;
-      let torrentData = null;
+    // .torrent file
+    if (req.file) {
+      torrentType = "torrent";
 
-      // Magnet
-      if (magnet) {
+      try {
+        const parsed = parseTorrent(req.file.buffer);
 
-        if (!magnet.startsWith("magnet:?")) {
-          return res.status(400).send(
-            "Invalid magnet link."
-          );
+        infoHash = parsed.infoHash || null;
+
+        if (!infoHash) {
+          return res.status(400).send("Could not extract torrent info hash");
         }
 
-        torrentType = "magnet";
-        torrentData = magnet;
-
+        torrentData = req.file.buffer.toString("base64");
+      } catch (err) {
+        console.error("Torrent parsing error:", err);
+        return res.status(400).send("Invalid .torrent file");
       }
+    }
+
+    const { data, error } = await supabase
+      .from("movies")
+      .insert([
+        {
+          title: title.trim(),
+          quality: quality || "1080p",
+          torrent_type: torrentType,
+          torrent_data: torrentData,
+          info_hash: infoHash,
+          stream_url: null
+        }
+      ])
+      .select();
+
+    if (error) {
+      console.error("Supabase insert error:", error);
+      return res.status(500).send(`Database error: ${error.message}`);
+    }
+
+    res.send(`
+      <h2>Movie added successfully</h2>
+      <p><b>Title:</b> ${escapeHtml(title)}</p>
+      <p><b>Type:</b> ${torrentType}</p>
+      <p><b>Info Hash:</b> ${infoHash || "Not found"}</p>
+      <p><b>ID:</b> ${data[0].id}</p>
+      <br>
+      <a href="/admin">Add another movie</a>
+    `);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Server error");
+  }
+});
 
       // .torrent
       else if (req.file) {
