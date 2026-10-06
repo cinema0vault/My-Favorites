@@ -10,6 +10,6 @@
     "@supabase/supabase-js": "^2.57.4",
     "express": "^4.21.2",
     "multer": "^2.0.2",
-    "parse-torrent": "^11.0.0"
+    "parse-torrent-file": "^1.0.1"
   }
 }
