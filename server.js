@@ -234,9 +234,13 @@ app.post("/admin/add", upload.single("torrent"), async (req, res) => {
       torrentData = magnet.trim();
 
       try {
-        const parsed = parseTorrent(torrentData);
+        const match = magnet.match(/xt=urn:btih:([a-zA-Z0-9]+)/i);
 
-        infoHash = parsed.infoHash || null;
+        if (!match) {
+        return res.status(400).send("Invalid magnet link");
+          }
+
+infoHash = match[1].toLowerCase();
 
       } catch (err) {
         console.error("Magnet parsing error:", err);
