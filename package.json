@@ -1,0 +1,12 @@
+{
+  "name": "my-favorites-stremio-addon",
+  "version": "1.0.0",
+  "description": "Personal Stremio addon",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
