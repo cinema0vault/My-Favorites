@@ -3,6 +3,19 @@ const express = require("express");
 const app = express();
 const PORT = process.env.PORT || 10000;
 
+// CORS for Stremio
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
+
 const movies = {
   "big-buck-bunny": {
     name: "Big Buck Bunny",
@@ -46,7 +59,9 @@ app.get("/meta/movie/:id.json", (req, res) => {
   const movie = movies[req.params.id];
 
   if (!movie) {
-    return res.status(404).json({ error: "Movie not found" });
+    return res.status(404).json({
+      error: "Movie not found"
+    });
   }
 
   res.json({
@@ -62,7 +77,9 @@ app.get("/stream/movie/:id.json", (req, res) => {
   const movie = movies[req.params.id];
 
   if (!movie) {
-    return res.status(404).json({ streams: [] });
+    return res.status(404).json({
+      streams: []
+    });
   }
 
   res.json({
