@@ -1,0 +1,22 @@
+{
+  "id": "com.cinemavault.myfavorites",
+  "version": "1.0.0",
+  "name": "My Favorites",
+  "description": "Personal Stremio addon for authorized media",
+  "logo": "https://placehold.co/256x256/png",
+  "resources": [
+    "catalog",
+    "meta",
+    "stream"
+  ],
+  "types": [
+    "movie"
+  ],
+  "catalogs": [
+    {
+      "type": "movie",
+      "id": "my-favorites",
+      "name": "My Favorites"
+    }
+  ]
+}
