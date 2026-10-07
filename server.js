@@ -28,7 +28,7 @@ app.use((req, res, next) => {
 
   if (req.method === "OPTIONS") {
     return res.sendStatus(200);
-  }
+  }        
 
   next();
 });
@@ -965,51 +965,36 @@ app.get(
 // ==================================================
 
 app.get(
-  "/stream/movie-:id.json",
+  "/stream/movie/:id.json",
   async (req, res) => {
-
-    console.log(
-      "================================="
-    );
 
     console.log(
       "STREAM REQUEST:",
       req.originalUrl
     );
 
-    console.log(
-      "PARAMETER:",
-      req.params.id
-    );
-
-    console.log(
-      "================================="
-    );
-
     try {
 
-      const movieId =
-        Number(req.params.id);
+      let id = req.params.id;
 
-      if (
-        !Number.isInteger(movieId)
-      ) {
-
-        console.log(
-          "Invalid movie ID"
-        );
-
-        return res.json({
-          streams: []
-        });
-
+      if (id.startsWith("movie-")) {
+        id = id.substring(6);
       }
 
+      const movieId = Number(id);
+
       console.log(
-        "Looking for movie_id:",
+        "MOVIE ID:",
         movieId
       );
 
+      if (!Number.isInteger(movieId)) {
+        return res.json({
+          streams: []
+        });
+      }
+
+      // ... keep the rest of your existing stream code here
       // ------------------------------------------
       // GET STREAMS FROM SUPABASE
       // ------------------------------------------
