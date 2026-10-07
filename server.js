@@ -747,42 +747,138 @@ app.get(
 // --------------------------------------------------
 
 app.get(
-  "/stream/movie/:id.json",
+  "/stream/movie-:id.json",
   async (req, res) => {
 
-    console.log(
-      "STREAM REQUEST:",
-      req.originalUrl
-    );
+    console.log("STREAM REQUEST:", req.originalUrl);
 
     try {
 
-      let id = req.params.id;
+      const movieId = Number(req.params.id);
 
-      console.log(
-        "RAW MOVIE ID:",
-        id
-      );
-
-      if (id.startsWith("movie-")) {
-        id = id.substring(6);
-      }
-
-      const movieId = Number(id);
-
-      console.log(
-        "PARSED MOVIE ID:",
-        movieId
-      );
+      console.log("MOVIE ID:", movieId);
 
       if (!Number.isInteger(movieId)) {
+        return res.json({
+          streams: []
+        });
+      }
+
+      const {
+        data: streamRows,
+        error: streamError
+      } = await supabase
+        .from("movie_streams")
+        .select(
+          "id,movie_id,quality,torrent_type,torrent_data,info_hash,stream_url"
+        )
+        .eq("movie_id", movieId)
+        .order("quality", {
+          ascending: false
+        });
+
+      if (streamError) {
+
+        console.error(
+          "SUPABASE STREAM ERROR:",
+          streamError
+        );
 
         return res.json({
           streams: []
         });
+      }
+
+      console.log(
+        "STREAM ROWS:",
+        streamRows
+      );
+
+      const streams = [];
+
+      for (const stream of streamRows || []) {
+
+        // Direct video URL
+        if (
+          typeof stream.stream_url === "string" &&
+          stream.stream_url.trim()
+        ) {
+
+          streams.push({
+            name: stream.quality,
+
+            title:
+              `${stream.quality} • Direct`,
+
+            description:
+              `${stream.quality} • Direct Stream`,
+
+            url:
+              stream.stream_url.trim(),
+
+            behaviorHints: {
+              bingeGroup:
+                `myfavorites-${stream.quality}`
+            }
+          });
+
+          continue;
+        }
+
+        // Torrent / magnet
+        if (
+          typeof stream.info_hash === "string" &&
+          stream.info_hash.trim()
+        ) {
+
+          streams.push({
+            name: stream.quality,
+
+            title:
+              `${stream.quality} • Torrent`,
+
+            description:
+              `${stream.quality} • Torrent`,
+
+            infoHash:
+              stream.info_hash.trim(),
+
+            type: "torrent",
+
+            behaviorHints: {
+              bingeGroup:
+                `myfavorites-${stream.quality}`
+            }
+          });
+
+        }
 
       }
 
+      console.log(
+        "FINAL STREAMS:",
+        streams
+      );
+
+      return res.json({
+        streams
+      });
+
+    } catch (error) {
+
+      console.error(
+        "STREAM ERROR:",
+        error
+      );
+
+      return res.json({
+        streams: []
+      });
+
+    }
+
+  }
+);
       // ------------------------------------------
       // GET STREAMS
       // ------------------------------------------
